@@ -17,12 +17,6 @@ from db import Base
 class LibraryItem(Base):
     __tablename__ = "library_items"
 
-    state_id: Mapped[uuid.UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("states.id", ondelete="CASCADE"),
-        nullable=False
-    )
-
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         primary_key=True,

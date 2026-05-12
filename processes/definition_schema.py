@@ -1,34 +1,87 @@
 """
 processes/definition_schema.py
 Pydantic schema to validate Process.definition structure.
+
+This ensures that whenever a Process is created or updated,
+its definition matches the expected workflow structure.
+
+DESIGN CHOICES:
+- condition & target: REQUIRED (transitions need both to work)
+- transitions: Defaults to [] (empty = end state, no further transitions)
+- end_states: Defaults to [] (process can rely on states with no transitions)
 """
 
-from pydantic import BaseModel
+from __future__ import annotations
 
-# Class 1: StateTransition
-# - Fields: condition (str), target (str)
-# - Both required
-
-# Class 2: StateConfig
-# - Fields: transitions (list of StateTransition)
-# - transitions can be empty list (optional/default to [])
-
-# Class 3: ProcessDefinition
-# - Fields: initial_state (str), states (dict), end_states (list)
-# - All required
-# - states is dict where key=state_uuid, value=StateConfig
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict
 
+
 class StateTransition(BaseModel):
-    condition: str = #???  # What goes here?
-    target: str = #???     # What goes here?
+    """
+    A single transition rule in a state.
 
-    class StateConfig(BaseModel):
-        transitions: List[StateTransition] = #???  # What's the default?
+    Defines: IF condition is true, THEN go to target state.
 
-        class ProcessDefinition(BaseModel):
-            initial_state: str
-            states: Dict[str, StateConfig]
-            end_states: List[str] = #???  # What's the default?
+    Both condition and target are REQUIRED because:
+    - condition: Tells orchestrator WHEN to transition
+    - target: Tells orchestrator WHERE to go
+    """
+    condition: str = Field(..., description="Condition to evaluate (e.g., 'true', 'stress_level > 8')")
+    target: str = Field(..., description="UUID of target state as string")
+
+
+class StateConfig(BaseModel):
+    """
+    Configuration for a single state in the workflow.
+
+    transitions defaults to [] (empty list) because:
+    - Empty transitions = this is an END state
+    - Patient cannot move further from this state
+    - Session effectively ends here
+    """
+    transitions: List[StateTransition] = Field(
+        default_factory=list,
+        description="List of transitions from this state (empty list = end state)"
+    )
+
+
+class ProcessDefinition(BaseModel):
+    """
+    Complete process workflow definition.
+
+    This is the state machine that defines how a process flows
+    from initial state through various states and transitions.
+
+    end_states defaults to [] (empty list) because:
+    - Process can rely on states with no transitions instead
+    - Not all processes need explicit end_states list
+    - Provides flexibility in process design
+    """
+    initial_state: str = Field(..., description="UUID of initial state as string")
+    states: Dict[str, StateConfig] = Field(..., description="Map of state_uuid -> StateConfig")
+    end_states: List[str] = Field(
+        default_factory=list,
+        description="List of state UUIDs that end the process (optional)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "initial_state": "550e8400-e29b-41d4-a716-446655440001",
+                "states": {
+                    "550e8400-e29b-41d4-a716-446655440001": {
+                        "transitions": [
+                            {
+                                "condition": "true",
+                                "target": "550e8400-e29b-41d4-a716-446655440002"
+                            }
+                        ]
+                    },
+                    "550e8400-e29b-41d4-a716-446655440002": {
+                        "transitions": []
+                    }
+                },
+                "end_states": ["550e8400-e29b-41d4-a716-446655440002"]
+            }
+        }

@@ -64,7 +64,7 @@ def create_sample_data():
                 str(state_welcome.id): {
                     "transitions": [
                         {
-                            "condition": "true",
+                            "condition": "True",
                             "target": str(state_breath.id)
                         }
                     ]
@@ -72,7 +72,7 @@ def create_sample_data():
                 str(state_breath.id): {
                     "transitions": [
                         {
-                            "condition": "true",
+                            "condition": "True",
                             "target": str(state_closing.id)
                         }
                     ]
