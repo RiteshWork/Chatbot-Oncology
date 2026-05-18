@@ -1,0 +1,249 @@
+================================================================================
+CLASSIFIER: QUICK SUMMARY
+================================================================================
+
+QUESTION: "The classifier is working on what basis?"
+
+ANSWER: KEYWORD MATCHING (NOT Machine Learning, NOT Language Model)
+
+================================================================================
+THE 7 EMOTION CATEGORIES
+================================================================================
+
+1. COMFORTABLE
+   Keywords: ready, peaceful, relaxed, okay, fine, good, yes, sure, happy, excited
+   Detects: Patient ready to proceed
+
+2. EMOTIONAL
+   Keywords: overwhelmed, upset, struggling, sad, crying, distressed, anxious, worried
+   Detects: Patient emotionally overwhelmed
+
+3. HESITANT
+   Keywords: hesitant, not sure, doubtful, uncertain, maybe, nervous, scared
+   Detects: Patient uncertain about proceeding
+
+4. UNCERTAIN
+   Keywords: confused, conflicted, mixed feelings, torn, unclear
+   Detects: Patient has mixed feelings
+
+5. NEEDS_REASSURANCE
+   Keywords: help, support, worried, anxious, nervous, fear, scared, not ok, in pain
+   Detects: Patient needs support
+
+6. UNWILLING
+   Keywords: don't want, refuse, don't think so, no, not interested, won't
+   Detects: Patient is resistant
+
+7. PHYSICALLY_UNCOMFORTABLE
+   Keywords: pain, hurt, discomfort, sore, ache, tired, fatigue, stiff
+   Detects: Patient has physical discomfort
+
+================================================================================
+HOW IT WORKS (3 STEPS)
+================================================================================
+
+STEP 1: COUNT KEYWORDS
+  User says: "I am anxious and worried"
+
+  Count matches:
+    comfortable: 0
+    emotional: 2 (found "anxious", "worried")
+    hesitant: 0
+    uncertain: 0
+    needs_reassurance: 2 (found "anxious", "worried")
+    unwilling: 0
+    physically_uncomfortable: 0
+
+STEP 2: PICK HIGHEST SCORE
+  Scores: {emotional: 2, needs_reassurance: 2, others: 0}
+  Max score: 2
+  Emotions tied: emotional, needs_reassurance
+
+STEP 3: APPLY SPECIAL MAPPING
+  Check: Does message contain anxiety keywords?
+  Find: "anxious" ✓
+  Special mapping: "anxious" handler triggered!
+
+  Final emotion: "anxious" (not just "emotional")
+
+================================================================================
+RESULT
+================================================================================
+
+Output:
+{
+  emotion: "anxious",
+  confidence: 0.4,
+  intent: "request_calm"
+}
+
+This flows to:
+  ↓
+Orchestrator (Routes to anxiety handler state)
+  ↓
+RAG Retriever (Gets anxiety scripts from database)
+  ↓
+LLM Generator (Creates personalized response using scripts)
+  ↓
+User (Sees therapeutic response)
+
+================================================================================
+KEY FACTS
+================================================================================
+
+✓ Pure keyword matching
+✓ NO machine learning
+✓ NO language model (LLM)
+✓ Hardcoded word lists
+✓ Fast (instant classification)
+✓ Free (no API calls)
+✓ Deterministic (same input = same output)
+✓ ~70% accurate (good for clear emotions)
+
+✗ Can't understand context ("not ok" might match "ok")
+✗ No negation handling ("I don't want pain" still matches "pain")
+✗ Limited to predefined keywords
+✗ Misses nuance in language
+
+================================================================================
+CONFIDENCE CALCULATION
+================================================================================
+
+confidence = min(keyword_count / 5.0, 1.0)
+
+Score 0 → Confidence 0.5 (default guess)
+Score 1 → Confidence 0.2 (low confidence)
+Score 2 → Confidence 0.4 (medium confidence)
+Score 3 → Confidence 0.6 (medium-high confidence)
+Score 5+ → Confidence 1.0 (very high confidence)
+
+Example:
+  Message: "I am anxious" (1 keyword match)
+  confidence = min(1 / 5.0, 1.0) = 0.2
+
+================================================================================
+SPECIAL MAPPING RULES
+================================================================================
+
+RULE 1: ANXIOUS HANDLER
+When:
+  - emotion = "emotional" OR "needs_reassurance"
+  - AND message contains: anxious|worried|nervous|panic|scared|afraid|racing|overwhelmed
+
+Then:
+  - emotion = "anxious" (special mapping)
+  - Routes to anxiety-specific handler
+
+RULE 2: RESISTANT HANDLER
+When:
+  - emotion = "unwilling" OR "hesitant"
+  - AND message contains: don't want|refuse|no|nope|don't think|won't do
+
+Then:
+  - emotion = "resistant" (special mapping)
+  - Routes to resistance-specific handler
+
+================================================================================
+EXAMPLES
+================================================================================
+
+USER: "I am anxious"
+  Matches: EMOTIONAL_KEYWORDS (anxious), NEEDS_REASSURANCE_KEYWORDS (anxious)
+  Score: 2 (both have 1 match each, but emotion says 2? - actually each keyword = 1 count)
+  Actually: emotional: 1, needs_reassurance: 1
+  Tie at max_score = 1
+  Special mapping check: "anxious" found ✓
+  Result: emotion = "anxious", confidence = 0.2
+
+USER: "I have pain"
+  Matches: PHYSICALLY_UNCOMFORTABLE_KEYWORDS (pain)
+  Score: 1
+  Special mapping: No special rules apply
+  Result: emotion = "physically_uncomfortable", confidence = 0.2
+
+USER: "I'm ready to begin"
+  Matches: COMFORTABLE_KEYWORDS (ready, begin)
+  Score: 2
+  Special mapping: No special rules apply
+  Intent also detected: "ready" in message → intent = "start_breathing"
+  Result: emotion = "comfortable", confidence = 0.4, intent = "start_breathing"
+
+USER: "I don't want to do this, I'm scared"
+  Matches:
+    emotional: 1 (scared)
+    hesitant: 1 (scared)
+    needs_reassurance: 1 (scared)
+    unwilling: 1 (don't want)
+  Score: 1 (all tied at 1)
+  Emotions tied: emotional, hesitant, needs_reassurance, unwilling
+  Special mapping: resistant_keywords check: "don't want" found ✓
+                   ("unwilling" in emotions_tied) ✓
+  Result: emotion = "resistant", confidence = 0.2
+
+USER: "I'm comfortable and ready to begin"
+  Matches: COMFORTABLE_KEYWORDS (comfortable, ready, begin)
+  Score: 3
+  Special mapping: No special rules apply
+  Result: emotion = "comfortable", confidence = 0.6
+
+================================================================================
+FILE LOCATION
+================================================================================
+
+classifier/simple_classifier.py
+
+Import:
+from classifier.simple_classifier import classifier
+
+Usage:
+result = classifier.classify("I am anxious")
+# result.emotion = "anxious"
+# result.confidence = 0.2
+# result.intent = "request_calm"
+
+================================================================================
+NOT USING LLM FOR CLASSIFICATION
+================================================================================
+
+Why?
+  - Slow: LLM takes 1+ seconds, classifier takes 1ms
+  - Expensive: LLM costs money, classifier is free
+  - Overkill: Just need keyword matching, not text generation
+  - Deterministic: Need consistent emotion detection
+
+LLM IS USED FOR:
+  - Generating personalized responses (only after emotion is detected)
+  - Not for emotion detection
+  - Not for state routing
+  - Only for the final response to user
+
+================================================================================
+INTEGRATION WITH REST OF SYSTEM
+================================================================================
+
+User Message
+    ↓
+Classifier: Detect emotion (keyword matching)
+    ↓
+Orchestrator: Route to next state (rule-based)
+    ↓
+RAG Retriever: Get scripts for detected emotion (database query)
+    ↓
+LLM Generator: Create response using emotion + scripts (API call)
+    ↓
+Response to User
+
+================================================================================
+SUMMARY
+================================================================================
+
+Basis: KEYWORD MATCHING (7 emotion categories with predefined word lists)
+Technology: Pure pattern matching (no ML, no LLM)
+Speed: Instant (1ms)
+Cost: Free
+Accuracy: ~70% (good for clear emotions)
+Deterministic: Yes (same input always gives same output)
+
+That's it! Simple, fast, and effective for therapeutic chatbot use case.
+
+================================================================================

@@ -22,7 +22,7 @@ def test_orchestrator():
     orchestrator = OrchestratorEngine()
 
     # Use the session ID from create_sample_data.py output
-    session_id = uuid.UUID("1b85aec8-73d9-4a9b-aa62-44225cd55a1f")
+    session_id = uuid.UUID("f598f3ab-958b-4f82-9ee6-7a4f4c329ad3")
 
     # Test Step 1: Welcome → Breathing
     print("\n[Step 1] Welcome state → Breathing state")

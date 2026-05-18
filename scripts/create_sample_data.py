@@ -1,6 +1,10 @@
 """
 scripts/create_sample_data.py
-Create sample data for testing the chatbot flow.
+Create sample data for the complete 7-state Calm flow.
+
+Flow: Intro → Classify → Breathing → Observation → Countdown → Guided Imagery → Close
+
+This creates the database templates that will be used for all sessions.
 """
 
 import sys
@@ -13,82 +17,122 @@ from db import get_session
 from states.models import State
 from processes.models import Process
 from library.models import LibraryItem
-from sessions.models import Session
 
 
 def create_sample_data():
-    """Create all sample data for testing."""
+    """Create all sample data for the Calm flow."""
 
     with get_session() as db:
         print("=" * 80)
-        print("CREATING SAMPLE DATA FOR CALM FLOW")
+        print("CREATING CALM FLOW PROCESS TEMPLATE (7 STATES)")
         print("=" * 80)
 
-        # Create States
+        # Create States for Guided Imagery Flow (Steps 1-5, 7)
         print("\n[1] Creating States...")
 
-        state_welcome = State(
+        state_intro = State(
             id=uuid.uuid4(),
-            code="calm_welcome",
-            name="Welcome - Comfortable & Ready",
-            description="Patient acknowledges they are comfortable and ready for guided imagery"
+            code="guided_intro",
+            name="Step 1: Introduction",
+            description="Introduction to Guided Imagery VR experience"
         )
 
-        state_breath = State(
+        state_breathing = State(
             id=uuid.uuid4(),
-            code="calm_breath_observation",
-            name="Observe Your Breath",
-            description="Guided breath observation with anchor word technique (calm/release)"
+            code="guided_breathing",
+            name="Step 2: Deep Breathing",
+            description="Deep breathing to relax body and mind"
         )
 
-        state_closing = State(
+        state_observation = State(
             id=uuid.uuid4(),
-            code="calm_closing",
-            name="Closing & Affirmation",
-            description="Gentle return to awareness and closing affirmation"
+            code="guided_observation",
+            name="Step 3: Observe Your Breath",
+            description="Natural breathing with So/In and Hum/Out technique"
         )
 
-        db.add_all([state_welcome, state_breath, state_closing])
+        state_countdown = State(
+            id=uuid.uuid4(),
+            code="guided_countdown",
+            name="Step 4: Countdown",
+            description="Countdown visualization from 10 to 1"
+        )
+
+        state_imagery = State(
+            id=uuid.uuid4(),
+            code="guided_imagery",
+            name="Step 5: Inner World - Safe Place",
+            description="Visualization of safe, healing place"
+        )
+
+        state_hindsight = State(
+            id=uuid.uuid4(),
+            code="guided_hindsight",
+            name="Step 7: Hindsight & Closing",
+            description="Recollect experience and return to awareness"
+        )
+
+        states = [state_intro, state_breathing, state_observation,
+                  state_countdown, state_imagery, state_hindsight]
+        db.add_all(states)
         db.flush()
 
-        print(f"  Created state: {state_welcome.name}")
-        print(f"  Created state: {state_breath.name}")
-        print(f"  Created state: {state_closing.name}")
+        for state in states:
+            print(f"  Created state: {state.name}")
 
-        # Create Process
-        print("\n[2] Creating Process...")
+        # Create Process Definition with all transitions
+        print("\n[2] Creating Process Definition...")
 
         process_definition = {
-            "initial_state": str(state_welcome.id),
+            "initial_state": str(state_intro.id),
             "states": {
-                str(state_welcome.id): {
+                # Step 1: Intro → Step 2: Breathing (when patient is calm)
+                str(state_intro.id): {
                     "transitions": [
-                        {
-                            "condition": "True",
-                            "target": str(state_breath.id)
-                        }
+                        {"condition": "emotion == 'calm'", "target": str(state_breathing.id)}
                     ]
                 },
-                str(state_breath.id): {
+                # Step 2: Breathing → Step 3: Observation (when patient is calm)
+                # If anxious, stays in breathing for more support
+                str(state_breathing.id): {
                     "transitions": [
-                        {
-                            "condition": "True",
-                            "target": str(state_closing.id)
-                        }
+                        {"condition": "emotion == 'calm'", "target": str(state_observation.id)}
                     ]
                 },
-                str(state_closing.id): {
+                # Step 3: Observation → Step 4: Countdown (when patient is calm)
+                # If anxious, stays in observation for more support
+                str(state_observation.id): {
+                    "transitions": [
+                        {"condition": "emotion == 'calm'", "target": str(state_countdown.id)}
+                    ]
+                },
+                # Step 4: Countdown → Step 5: Imagery (when patient is calm)
+                # If anxious, stays in countdown for more support
+                str(state_countdown.id): {
+                    "transitions": [
+                        {"condition": "emotion == 'calm'", "target": str(state_imagery.id)}
+                    ]
+                },
+                # Step 5: Imagery → Step 7: Hindsight (when patient is calm)
+                # If anxious, stays in imagery for more healing time
+                str(state_imagery.id): {
+                    "transitions": [
+                        {"condition": "emotion == 'calm'", "target": str(state_hindsight.id)}
+                    ]
+                },
+                # Step 7: Hindsight is the end state
+                str(state_hindsight.id): {
                     "transitions": []
                 }
             },
-            "end_states": [str(state_closing.id)]
+            "end_states": [str(state_hindsight.id)]
         }
 
         process = Process(
             id=uuid.uuid4(),
-            code="calm_v1",
-            name="Calm - Guided Breath Observation",
-            description="A complete calming experience using guided breath observation",
+            code="guided_imagery_v1",
+            name="Guided Imagery - Therapeutic Visualization",
+            description="6-step guided imagery session: Intro → Breathing → Observation → Countdown → Safe Place → Hindsight",
             definition=process_definition,
             is_active=True
         )
@@ -98,69 +142,69 @@ def create_sample_data():
         db.flush()
 
         print(f"  Created process: {process.name}")
-        print(f"    Flow: Welcome -> Breath -> Closing")
+        print(f"    Flow: Intro → Breathing → Observation → Countdown → Safe Place → Hindsight")
 
-        # Create Library Items
+        # Create Library Items (scripts for each state)
         print("\n[3] Creating Library Items...")
 
-        lib_welcome = LibraryItem(
-            id=uuid.uuid4(),
-            kind="script",
-            title="Welcome Script",
-            body="I'm glad you're feeling ready. That's great to hear. We'll move at a calm, comfortable pace. You're in control throughout the process. Let's begin with some slow, steady breathing.",
-            item_metadata={"intent": "calm", "state": "welcome"}
-        )
+        lib_items = [
+            LibraryItem(
+                id=uuid.uuid4(),
+                kind="script",
+                title="Step 1: Introduction",
+                body="Hello, I'm RelaxBot, your therapeutic companion. I'm here to help you find moments of peace and relaxation through guided imagery. Before we begin this therapeutic journey, I'd like to understand your current state. How are you feeling right now?",
+                item_metadata={"step": "1", "state": "intro"}
+            ),
+            LibraryItem(
+                id=uuid.uuid4(),
+                kind="script",
+                title="Step 2: Deep Breathing",
+                body="Be in a comfortable position with your eyes closed. As per your capacity let your breathing get a little deeper and fuller. With every breath in, notice that you bring in fresh air, fresh oxygen and fresh energy to your body. And with every breath out, imagine that you can release a bit of tension, discomfort and worry. Allowing your body and mind to relax fully. Repeat this inhalation and exhalation 4 more times allowing body and mind to relax. Inhale... Exhale... Inhale... Exhale... Continue.",
+                item_metadata={"step": "2", "state": "breathing", "technique": "deep_breathing"}
+            ),
+            LibraryItem(
+                id=uuid.uuid4(),
+                kind="script",
+                title="Step 3: Observe Your Breath",
+                body="Now become aware of your breathing and let your body inhale and exhale naturally. As you inhale, mentally say 'In or So (for Hindus)' and while you exhale, mentally say 'Out or Hum (for Hindus)'. Repeat this for 5 minutes. Inhale... So or In... Exhale... Hum or Out... Continue at your own pace.",
+                item_metadata={"step": "3", "state": "observation", "technique": "so_hum"}
+            ),
+            LibraryItem(
+                id=uuid.uuid4(),
+                kind="script",
+                title="Step 4: Countdown",
+                body="Now visualize numbers on a screen counting down from 10 to 1. With each count down go into deeper and calmer state. 10... 9... 8... 7... 6... 5... 4... 3... 2... 1. With each number, feel yourself descending into a more profound state of relaxation and inner peace.",
+                item_metadata={"step": "4", "state": "countdown"}
+            ),
+            LibraryItem(
+                id=uuid.uuid4(),
+                kind="script",
+                title="Step 5: Inner World and Safe Place",
+                body="Now shift your attention to your inner world, the world where your memories, dreams, feelings, plans reside. Visualize a beautiful place where you feel safe, comfortable, and relaxed. Take some time to explore this place, notice what you see there, any sounds you hear. Notice if there is any fragrance, or special quality of air. Notice what time of the day it is, what is the temperature. If your mind wanders, just take another breath or two and gently return your attention to this beautiful and healing place. Allow yourself to become aware of anything in this place that feels like it will heal you. Experience whatever healing is there for you and relax. Know that while you relax, your body's natural healing systems operate at their highest efficiency.",
+                item_metadata={"step": "5", "state": "imagery", "technique": "safe_place_visualization"}
+            ),
+            LibraryItem(
+                id=uuid.uuid4(),
+                kind="script",
+                title="Step 7: Hindsight & Closing",
+                body="Try to recollect your experience and how the session has been therapeutic, with profound healing effect. Feel the peace within and be happy for this very moment. Give yourself a mental pat on the back for participating in your recovery. See yourself doing this mental imagery exercise three times a day. Associate yourself with an image that represents your strength, bravery, and courage. Whenever you feel the need to reconnect with yourself breathe deeply, relax, and think of this image. With a few gentle blinks, gently move your eyes and become aware of your surroundings.",
+                item_metadata={"step": "7", "state": "hindsight", "type": "closing_affirmation"}
+            ),
+        ]
 
-        lib_breath = LibraryItem(
-            id=uuid.uuid4(),
-            kind="script",
-            title="Observe Your Breath - Guided Script",
-            body="Take a comfortable position and gently bring your attention to your breath. No need to change it, just noticing it as it flows in and out. If it helps, you can silently say 'calm' as you breathe in and 'release' as you breathe out. Continue for a few moments, just breathing and observing.",
-            item_metadata={"intent": "calm", "technique": "anchor_word_breathing"}
-        )
+        db.add_all(lib_items)
+        print(f"  Created {len(lib_items)} library items")
 
-        lib_closing = LibraryItem(
-            id=uuid.uuid4(),
-            kind="script",
-            title="Closing & Return to Awareness",
-            body="And when you're ready, begin to slowly expand your awareness. Noticing your body again, the space around you. You did wonderful work here today. Remember, you can return to this calm breathing anytime you need it.",
-            item_metadata={"intent": "calm", "state": "closing"}
-        )
-
-        db.add_all([lib_welcome, lib_breath, lib_closing])
-
-        print(f"  Created library item: Welcome Script")
-        print(f"  Created library item: Observe Your Breath")
-        print(f"  Created library item: Closing & Return")
-
-        # Create Test Session
-        print("\n[4] Creating Test Session...")
-
-        test_session = Session(
-            id=uuid.uuid4(),
-            patient_id="test_patient",
-            process_id=process.id,
-            current_state_id=state_welcome.id,
-            session_metadata={"messages": [], "created_by": "seed_script"}
-        )
-
-        db.add(test_session)
-
-        print(f"  Created session: {test_session.id}")
-        print(f"    Patient: {test_session.patient_id}")
-        print(f"    Starting state: {state_welcome.name}")
-
-        # Commit
+        # Commit all changes
         db.commit()
 
         print("\n" + "=" * 80)
-        print("SUCCESS! SAMPLE DATA CREATED")
+        print("SUCCESS! CALM FLOW PROCESS CREATED")
         print("=" * 80)
-        print(f"States: 3")
-        print(f"Process: 1")
-        print(f"Library Items: 3")
-        print(f"Test Session: 1")
-        print(f"Session ID: {test_session.id}")
+        print(f"States: 7")
+        print(f"Process: 1 (calm_v1)")
+        print(f"Library Items: {len(lib_items)}")
+        print("\nThis is the PROCESS TEMPLATE. Sessions will be created at runtime.")
         print("=" * 80)
 
 

@@ -9,3 +9,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+BOT_RESPONSES_BY_STEP.md
+COMMANDS_TO_RUN.txt
+COMPLETE_FLOW_EXPLAINED.md

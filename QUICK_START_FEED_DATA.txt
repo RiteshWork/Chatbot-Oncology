@@ -1,0 +1,321 @@
+================================================================================
+QUICK START: HOW TO FEED YOUR DATA TO DATABASE
+================================================================================
+
+YOUR FILE: "Physically uncomfortable Version2 (Ado).docx"
+STATUS: ✓ Script created and ready to run
+
+================================================================================
+WHAT JUST HAPPENED
+================================================================================
+
+1. Claude extracted your DOCX file content
+2. Structured each script with proper JSON metadata
+3. Created: scripts/add_physically_uncomfortable_content.py
+4. This script is ready to insert data into your PostgreSQL database
+
+
+================================================================================
+COMPLETE DATA FLOW EXPLANATION
+================================================================================
+
+YOUR DOCX FILE
+    ↓ (extracted by Claude)
+PYTHON SCRIPT: add_physically_uncomfortable_content.py
+    ├─ Defines 18 library items from your content
+    ├─ Each with: kind, title, body, metadata
+    ├─ metadata includes: step, state_code, emotional_state, intensity, type
+    ↓
+DATABASE: PostgreSQL library_items table
+    ├─ id (UUID)
+    ├─ kind (script, breathing_exercise, observation)
+    ├─ title (human-readable)
+    ├─ body (full content text)
+    ├─ metadata (JSON with filters)
+    ↓
+DURING CHAT:
+    When user types: "I have pain"
+    ├─ Classifier: emotion = "physically_uncomfortable"
+    ├─ RAG Retriever: Query database WHERE emotional_state = "physically_uncomfortable"
+    ├─ Returns: All 18 items (opening, breathing, observation, assessment)
+    ├─ LLM: Uses retrieved content to generate personalized response
+    └─ User gets: Therapeutic response with breathing technique
+
+
+================================================================================
+STEP-BY-STEP: HOW TO RUN THIS
+================================================================================
+
+STEP 1: VERIFY YOUR DATABASE IS RUNNING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+On your LOCAL WINDOWS MACHINE (where PostgreSQL is running on port 5555):
+
+Open PowerShell and test:
+    psql -h localhost -p 5555 -U postgres -d chatbot_oncology
+
+If this works → database is ready
+If not → Start PostgreSQL first
+
+
+STEP 2: RUN THE SETUP SCRIPTS (IN ORDER)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+In PowerShell on your LOCAL MACHINE:
+
+    cd "E:\Chatbot-Onco-ojaska labs\relaxbot"
+
+    # Clear old data
+    python scripts/cleanup_db.py
+
+    # Create base states (intro, breathing, etc.)
+    python scripts/create_rich_sample_data.py
+
+    # Add therapy handler states (grounding, reassurance, etc.)
+    python scripts/add_therapy_states.py
+
+    # ADD YOUR NEW PHYSICALLY UNCOMFORTABLE CONTENT ← NEW!
+    python scripts/add_physically_uncomfortable_content.py
+
+    # Verify everything is in database
+    python scripts/inspect_db.py
+
+
+STEP 3: RESTART YOUR API SERVER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    # If API is running, stop it (Ctrl+C)
+    # Then restart:
+
+    python -m uvicorn api.app:app --reload --port 8000
+
+
+STEP 4: TEST IN YOUR BROWSER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Open: http://localhost:8000/frontend/index.html
+
+Try typing:
+    - "I have pain" → Should trigger physically_uncomfortable
+    - "My back hurts" → Should trigger physically_uncomfortable
+    - "I'm comfortable" → Should stay calm
+
+Verify you see responses with your breathing exercises
+
+
+================================================================================
+WHAT FORMAT YOUR DATA IS IN
+================================================================================
+
+Each item in the database looks like this:
+
+{
+  "id": "550e8400-uuid-001",
+  "kind": "breathing_exercise",
+  "title": "Deep Belly Breathing - Mild Physical Discomfort",
+  "body": "[full script text from your DOCX]",
+  "metadata": {
+    "step": "2",
+    "state_code": "breathing",
+    "emotional_state": "physically_uncomfortable",
+    "intensity": "mild",
+    "type": "breathing_exercise",
+    "technique": "deep_belly_breathing"
+  },
+  "created_at": "2025-05-13T00:00:00Z"
+}
+
+
+================================================================================
+HOW RAG USES YOUR DATA
+================================================================================
+
+When classifier detects: emotion = "physically_uncomfortable"
+
+RAG Retriever executes:
+
+    SELECT * FROM library_items
+    WHERE metadata->>'emotional_state' = 'physically_uncomfortable'
+
+This returns ALL 18 items your script added:
+    ✓ Opening scripts (mild, moderate, severe)
+    ✓ 4 breathing exercises
+    ✓ 4 observation techniques
+    ✓ Assessment scripts
+    ✓ Collaborative decision script
+
+These are passed to LLM with context:
+    "Patient has physical discomfort. Retrieved 18 therapeutic scripts.
+     Use appropriate breathing exercise from retrieved content."
+
+LLM generates personalized response using your content.
+
+
+================================================================================
+WHAT DATA WAS CREATED
+================================================================================
+
+Your DOCX contains → 18 Library Items Created:
+
+✓ 1 Introduction script
+✓ 3 Opening scripts (mild, moderate, severe)
+✓ 4 Breathing exercises (belly, 4-4, extended exhale, body scan)
+✓ 4 Observation techniques (mild, severe with grounding, acute, chronic)
+✓ 4 Assessment scripts (clarifying, intensity, impact, decision-making)
+
+Total: 18 therapeutic items ready for use
+
+
+================================================================================
+HOW TO VERIFY IT WORKED
+================================================================================
+
+After running add_physically_uncomfortable_content.py:
+
+Run:
+    python scripts/inspect_db.py
+
+Look for output like:
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    LIBRARY ITEMS
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    Total Items: 82 (this will be higher after adding your content)
+
+    By Emotional State:
+        physically_uncomfortable: 18 items ← YOUR NEW CONTENT
+        anxious: X items
+        ... other states
+
+    By Type:
+        breathing_exercise: X items
+        observation: X items
+        assessment_script: X items
+
+
+================================================================================
+NEXT STEPS: ADDING MORE CONTENT
+================================================================================
+
+You have these other DOCX files:
+    - Comfortable (Saka).docx
+    - EMOTIONAL (Shari).docx
+    - HESITANT (Shari).docx
+    - Needs Reassurance (Ado).docx
+
+To add each one:
+
+1. Duplicate add_physically_uncomfortable_content.py
+2. Rename: add_comfortable_content.py, add_emotional_content.py, etc.
+3. Extract content from each DOCX
+4. Update the dictionary with extracted content
+5. Update emotional_state in metadata
+6. Run each script locally
+
+Claude can help you create these scripts. Just provide the DOCX content!
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Problem: "connection refused on port 5555"
+Solution: PostgreSQL not running. Start it first.
+          Check Windows Services or pgAdmin
+
+Problem: "database 'chatbot_oncology' does not exist"
+Solution: Create database:
+          psql -h localhost -p 5555 -U postgres
+          CREATE DATABASE chatbot_oncology;
+          \q
+
+Problem: "No module named 'db'"
+Solution: Make sure you're in: E:\Chatbot-Onco-ojaska labs\relaxbot
+          And running: python scripts/add_physically_uncomfortable_content.py
+          (not from elsewhere)
+
+Problem: "inspect_db.py shows 0 new items"
+Solution: Make sure you ran add_physically_uncomfortable_content.py
+          Check that previous scripts ran successfully:
+          - cleanup_db.py (shows "deleted X items")
+          - create_rich_sample_data.py (shows "created X items")
+          - add_therapy_states.py (shows "created X items")
+
+
+================================================================================
+WHAT HAPPENS WHEN USER CHATS
+================================================================================
+
+Example conversation:
+
+User: "My lower back is really hurting right now"
+
+System:
+    1. CLASSIFIER
+       Input: "My lower back is really hurting right now"
+       Keywords found: "back", "hurting" → physically_uncomfortable
+       Output: emotion = "physically_uncomfortable", confidence = 0.88
+
+    2. ORCHESTRATOR
+       Current state: Step 1 (Introduction)
+       Checks transition: emotion in ['calm', 'comfortable']? NO
+       Action: Move to Step 2 (Breathing) for physical discomfort
+
+    3. RAG RETRIEVER
+       Query: Get items WHERE emotional_state = 'physically_uncomfortable'
+       Returns: 18 items including:
+         - "Opening Script - Moderate Physical Discomfort"
+         - "Deep Belly Breathing - Mild Physical Discomfort"
+         - "Body Scan Breathing - Mild Physical Discomfort"
+         - "Observe Your Breath with Grounding - Severe Pain"
+         - 14 more items
+
+       Also returns guidelines:
+         "Acknowledge pain, offer grounding, use reassuring language"
+
+    4. LLM SYNTHESIZER
+       System Prompt: "Patient has physical discomfort.
+                       Current state: Breathing exercises.
+                       Emotion: physically_uncomfortable.
+                       Retrieved content: 18 therapeutic scripts.
+                       Guidelines: Acknowledge pain, offer gentle technique."
+
+       Context passed: Retrieved 18 items
+
+       Generates: "I hear your back is hurting. That's uncomfortable,
+                   and I want to help. Let me share a gentle technique
+                   that works well for lower back pain. We'll start
+                   with a breathing exercise that won't strain your back..."
+
+    5. RESPONSE SENT TO USER
+       "I hear your back is hurting. That's uncomfortable, and I want to help.
+        Let me share a gentle technique. We'll start with something simple.
+
+        Try settling into a position that feels comfortable—you can lie down,
+        sit in a chair, or adjust however your back needs.
+
+        Now, let's do some gentle breathing together.
+        Breathe in slowly through your nose for 4 counts…
+        1… 2… 3… 4…
+        And slowly out…
+        1… 2… 3… 4…"
+
+       ← Uses content from your DOCX file!
+
+
+================================================================================
+SUMMARY
+================================================================================
+
+✓ Your DOCX has been analyzed
+✓ 18 library items have been created with metadata
+✓ Script created: add_physically_uncomfortable_content.py
+✓ Ready to insert into PostgreSQL database
+
+Next: Run on your LOCAL MACHINE (where PostgreSQL is running)
+
+    python scripts/add_physically_uncomfortable_content.py
+
+That's it! Your therapeutic content will then be used during chat sessions.
+
+================================================================================
